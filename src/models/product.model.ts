@@ -1,5 +1,12 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 
+export enum Departments {
+  MEN = "MEN",
+  WOMEN = "WOMEN",
+  ACCESSORIES = "ACCESSORIES",
+  NEWARRIVALS = "NEW ARRIVALS",
+}
+
 export interface IProductColor {
   name: string;
   value: string;
@@ -25,16 +32,15 @@ export interface IProduct extends Document {
   price: number;
   rating: number;
   reviewsCount: number;
-  category: "women" | "men" | "accessories" | "new-arrivals";
+  category: mongoose.Types.ObjectId;
   categoryLabel: string;
-  department: "women" | "men" | "accessories" | "new-arrivals";
-  subcategory: string;
+  department: Departments[];
   description: string;
   longDescription: string;
   images: string[];
   colors: IProductColor[];
   sizes: string[];
-  brand: string;
+  brand: mongoose.Types.ObjectId;
   inStock: boolean;
   stockCount: number;
   isBestSeller: boolean;
@@ -52,7 +58,7 @@ const ProductColorSchema = new Schema<IProductColor>(
     name: { type: String, required: true },
     value: { type: String, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const ProductSpecSchema = new Schema<IProductSpec>(
@@ -60,7 +66,7 @@ const ProductSpecSchema = new Schema<IProductSpec>(
     label: { type: String, required: true },
     value: { type: String, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const ProductReviewSchema = new Schema<IProductReview>(
@@ -68,39 +74,52 @@ const ProductReviewSchema = new Schema<IProductReview>(
     userId: { type: Schema.Types.ObjectId, ref: "User" },
     name: { type: String, required: true },
     rating: { type: Number, required: true, min: 1, max: 5 },
-    date: { type: String, default: () => new Date().toISOString().split("T")[0] },
+    date: {
+      type: String,
+      default: () => new Date().toISOString().split("T")[0],
+    },
     comment: { type: String, required: true },
   },
-  { _id: true }
+  { _id: true },
 );
 
 const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true, trim: true, lowercase: true, index: true },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
     price: { type: Number, required: true, min: 0 },
     rating: { type: Number, default: 5.0, min: 0, max: 5 },
     reviewsCount: { type: Number, default: 0 },
     category: {
-      type: String,
+      type: mongoose.Types.ObjectId,
       required: true,
-      enum: ["women", "men", "accessories", "new-arrivals"],
+      ref: "Category",
       index: true,
     },
     categoryLabel: { type: String, default: "" },
     department: {
-      type: String,
-      enum: ["women", "men", "accessories", "new-arrivals"],
-      default: "women",
-      index: true,
+      type: [String],
+      enum: Object.values(Departments),
+      default: [Departments.NEWARRIVALS],
     },
-    subcategory: { type: String, default: "", index: true },
     description: { type: String, required: true },
     longDescription: { type: String, default: "" },
     images: { type: [String], default: [] },
     colors: { type: [ProductColorSchema], default: [] },
     sizes: { type: [String], default: [] },
-    brand: { type: String, required: true, index: true },
+    brand: {
+      type: mongoose.Types.ObjectId,
+      required: true,
+      ref: "Brand",
+      index: true,
+    },
     inStock: { type: Boolean, default: true },
     stockCount: { type: Number, default: 10, min: 0 },
     isBestSeller: { type: Boolean, default: false },
@@ -112,9 +131,8 @@ const ProductSchema = new Schema<IProduct>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export const ProductModel: Model<IProduct> =
   mongoose.models.Product || mongoose.model<IProduct>("Product", ProductSchema);
-
