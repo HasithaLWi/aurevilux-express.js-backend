@@ -13,6 +13,9 @@ import OrderRouter from "./routes/order.routers";
 import UserRouter from "./routes/user.routers";
 import AdminRouter from "./routes/admin.routers";
 import UploadRouter from "./routes/upload.routers";
+import FeedbackRouter from "./routes/feedback.routers";
+import NewsletterRouter from "./routes/newsletter.routers";
+import { seedDatabase } from "./utils/seed";
 
 const MONGO_URL = process.env.MONGO_LOCAL_URL || "";
 const PORT = process.env.PORT || 5000;
@@ -42,11 +45,14 @@ app.use("/api/v1/orders", OrderRouter);
 app.use("/api/v1/users", UserRouter);
 app.use("/api/v1/admin", AdminRouter);
 app.use("/api/v1/upload", UploadRouter);
+app.use("/api/v1/feedback", FeedbackRouter);
+app.use("/api/v1/newsletter", NewsletterRouter);
 
 mongoose
   .connect(MONGO_URL)
-  .then(() => {
+  .then(async () => {
     console.log("DB connected..!");
+    await seedDatabase();
 
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);

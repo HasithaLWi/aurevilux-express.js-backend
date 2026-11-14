@@ -2,11 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 dotenv.config();
 
-const SUPABASE_URL =
-  process.env.SUPABASE_URL || "https://wbhfhfklvertgdleofgh.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || "";
 export const SUPABASE_BUCKET =
   process.env.SUPABASE_BUCKET || "aurevilux-products";
+export const SUPABASE_USER_BUCKET =
+  process.env.SUPABASE_USER_BUCKET || "aurevilux-user";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
   auth: {
@@ -18,12 +19,14 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
 /**
  * Uploads a Multer file buffer directly to Supabase Storage.
  * @param file Express.Multer.File from multer memoryStorage
- * @param folder Subfolder inside bucket (e.g., 'products', 'brands', 'campaigns')
+ * @param folder Subfolder inside bucket (e.g., 'products', 'avatars', 'brands')
+ * @param bucket Target Supabase bucket (defaults to SUPABASE_BUCKET, or SUPABASE_USER_BUCKET)
  */
 export async function uploadToSupabase(
   file: Express.Multer.File,
-  folder: string = "products"
-): Promise<{ url: string; path: string; fileName: string; size: number }> {
+  folder: string = "products",
+  bucket: string = SUPABASE_BUCKET
+): Promise<{ url: string; publicUrl: string; path: string; fileName: string; size: number }> {
   const timestamp = Date.now();
   const sanitizedOriginal = file.originalname
     .toLowerCase()
@@ -31,8 +34,10 @@ export async function uploadToSupabase(
     .replace(/-+/g, "-");
   const filePath = `${folder}/${timestamp}-${sanitizedOriginal}`;
 
+  const targetBucket = bucket || SUPABASE_BUCKET;
+
   const { data, error } = await supabase.storage
-    .from(SUPABASE_BUCKET)
+    .from(targetBucket)
     .upload(filePath, file.buffer, {
       contentType: file.mimetype,
       upsert: true,
@@ -44,11 +49,12 @@ export async function uploadToSupabase(
   }
 
   const { data: urlData } = supabase.storage
-    .from(SUPABASE_BUCKET)
+    .from(targetBucket)
     .getPublicUrl(data.path);
 
   return {
     url: urlData.publicUrl,
+    publicUrl: urlData.publicUrl,
     path: data.path,
     fileName: sanitizedOriginal,
     size: file.size,
@@ -59,11 +65,20 @@ export async function uploadToSupabase(
  * Removes a file from Supabase Storage by its public URL or internal path.
  */
 export async function deleteFromSupabase(
-  fileUrlOrPath: string
+  fileUrlOrPath: string,
+  bucket?: string
 ): Promise<boolean> {
   let targetPath = fileUrlOrPath;
+  let targetBucket = bucket || SUPABASE_BUCKET;
 
-  if (targetPath.includes(SUPABASE_BUCKET)) {
+  if (targetPath.includes(SUPABASE_USER_BUCKET)) {
+    targetBucket = SUPABASE_USER_BUCKET;
+    const parts = targetPath.split(`${SUPABASE_USER_BUCKET}/`);
+    if (parts.length > 1) {
+      targetPath = parts[1];
+    }
+  } else if (targetPath.includes(SUPABASE_BUCKET)) {
+    targetBucket = SUPABASE_BUCKET;
     const parts = targetPath.split(`${SUPABASE_BUCKET}/`);
     if (parts.length > 1) {
       targetPath = parts[1];
@@ -71,7 +86,7 @@ export async function deleteFromSupabase(
   }
 
   const { error } = await supabase.storage
-    .from(SUPABASE_BUCKET)
+    .from(targetBucket)
     .remove([targetPath]);
 
   if (error) {

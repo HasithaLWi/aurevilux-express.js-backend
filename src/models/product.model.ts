@@ -27,6 +27,8 @@ export interface IProduct extends Document {
   reviewsCount: number;
   category: "women" | "men" | "accessories" | "new-arrivals";
   categoryLabel: string;
+  department: "women" | "men" | "accessories" | "new-arrivals";
+  subcategory: string;
   description: string;
   longDescription: string;
   images: string[];
@@ -37,6 +39,8 @@ export interface IProduct extends Document {
   stockCount: number;
   isBestSeller: boolean;
   isNewArrival: boolean;
+  isActive: boolean;
+  isDeleted: boolean;
   specifications: IProductSpec[];
   reviews: IProductReview[];
   createdAt: Date;
@@ -84,6 +88,13 @@ const ProductSchema = new Schema<IProduct>(
       index: true,
     },
     categoryLabel: { type: String, default: "" },
+    department: {
+      type: String,
+      enum: ["women", "men", "accessories", "new-arrivals"],
+      default: "women",
+      index: true,
+    },
+    subcategory: { type: String, default: "", index: true },
     description: { type: String, required: true },
     longDescription: { type: String, default: "" },
     images: { type: [String], default: [] },
@@ -94,6 +105,8 @@ const ProductSchema = new Schema<IProduct>(
     stockCount: { type: Number, default: 10, min: 0 },
     isBestSeller: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true, index: true },
+    isDeleted: { type: Boolean, default: false, index: true },
     specifications: { type: [ProductSpecSchema], default: [] },
     reviews: { type: [ProductReviewSchema], default: [] },
   },

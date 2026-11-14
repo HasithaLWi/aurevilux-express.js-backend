@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { uploadToSupabase, deleteFromSupabase } from "../utils/supabase";
+import { uploadToSupabase, deleteFromSupabase, SUPABASE_BUCKET, SUPABASE_USER_BUCKET } from "../utils/supabase";
 
 export const uploadSingleImage = async (req: Request, res: Response) => {
   try {
@@ -8,11 +8,18 @@ export const uploadSingleImage = async (req: Request, res: Response) => {
     }
 
     const folder = (req.body.folder as string) || "products";
-    const result = await uploadToSupabase(req.file, folder);
+    const bucket =
+      (req.body.bucket as string) ||
+      (folder === "avatars" || folder === "users" ? SUPABASE_USER_BUCKET : SUPABASE_BUCKET);
+
+    const result = await uploadToSupabase(req.file, folder, bucket);
 
     return res.status(201).json({
       message: "Image uploaded successfully to Supabase Storage",
-      data: result,
+      data: {
+        ...result,
+        bucket,
+      },
     });
   } catch (error: any) {
     console.error("Upload error:", error);

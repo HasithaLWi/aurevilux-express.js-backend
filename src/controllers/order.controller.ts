@@ -36,14 +36,14 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       itemsCount,
       customer,
       shippingAddress,
-      status: "Processing",
+      status: "Pending", // Starts at Pending so customer can cancel before processing
       paymentStatus: "Paid",
       carrier: "DHL White Glove Concierge",
       trackingNumber: `EXP-${Math.floor(10000000 + Math.random() * 90000000)}`,
       estimatedDelivery: "3-5 Business Days",
       timeline: [
         { title: "Order Confirmed & Placed", date: formattedDate, completed: true },
-        { title: "Atelier Tailoring & Quality Assurance", date: "In Progress", completed: false },
+        { title: "Atelier Tailoring & Quality Assurance", date: "Pending", completed: false },
         { title: "White Glove Packaging & Dispatch", date: "Pending", completed: false },
         { title: "Private Courier Delivery", date: "Pending", completed: false },
       ],
@@ -67,7 +67,11 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Unauthorized. Please log in to view orders." });
     }
 
-    const orders = await OrderModel.find({ userId: req.user.sub }).sort({ createdAt: -1 });
+    const userEmail = (req.user as any)?.email;
+    const query = userEmail
+      ? { $or: [{ userId: req.user.sub }, { "customer.email": userEmail.toLowerCase() }] }
+      : { userId: req.user.sub };
+    const orders = await OrderModel.find(query).sort({ createdAt: -1 });
 
     return res.status(200).json({
       message: "Orders retrieved successfully",
@@ -80,7 +84,8 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
 
 export const getOrderByIdOrNumber = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const rawId = req.params.id;
+    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
     let order = null;
 
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -100,6 +105,59 @@ export const getOrderByIdOrNumber = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     return res.status(500).json({ message: "Failed to retrieve order", error: error.message });
+  }
+};
+
+export const cancelOrderCustomer = async (req: AuthRequest, res: Response) => {
+  try {
+    const rawId = req.params.id;
+    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
+    let order = null;
+
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      order = await OrderModel.findById(id);
+    }
+    if (!order) {
+      order = await OrderModel.findOne({ orderNumber: id.toUpperCase() });
+    }
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
+    }
+
+    // Security check: if authenticated, verify ownership unless admin
+    if (req.user?.sub && order.userId && order.userId.toString() !== req.user.sub.toString()) {
+      const isStaffOrAdmin = req.user.roles?.some((r: string) =>
+        ["SUPERADMIN", "ADMIN", "STAFF"].includes(r)
+      );
+      if (!isStaffOrAdmin) {
+        return res.status(403).json({ message: "Unauthorized to cancel this order." });
+      }
+    }
+
+    // Cancellation guard: only allowed before processing
+    const uncancelableStatuses = ["Processing", "In Transit", "Delivered", "Cancelled"];
+    if (uncancelableStatuses.includes(order.status)) {
+      return res.status(400).json({
+        message: `Order cannot be cancelled because it is already '${order.status}'. Please contact our concierge.`,
+      });
+    }
+
+    order.status = "Cancelled";
+    order.timeline.push({
+      title: "Order Cancelled by Patron",
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      completed: true,
+    });
+
+    await order.save();
+
+    return res.status(200).json({
+      message: "Order successfully cancelled.",
+      data: order,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: "Failed to cancel order", error: error.message });
   }
 };
 
@@ -192,4 +250,3 @@ export const updateOrderTracking = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Failed to update tracking", error: error.message });
   }
 };
-

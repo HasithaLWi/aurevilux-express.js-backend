@@ -5,6 +5,7 @@ import {
   submitBrandApplication,
   createBrand,
   updateBrand,
+  toggleBrandActive,
   deleteBrand,
 } from "../controllers/brand.controller";
 
@@ -15,6 +16,7 @@ router.get("/:id", getBrandByIdOrSlug);
 router.post("/apply", submitBrandApplication);
 router.post("/", createBrand);
 router.put("/:id", updateBrand);
+router.patch("/:id/toggle-active", toggleBrandActive);
 router.delete("/:id", deleteBrand);
 
 export default router;

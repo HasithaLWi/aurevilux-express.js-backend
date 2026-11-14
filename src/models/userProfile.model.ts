@@ -32,6 +32,8 @@ export interface IUserProfile extends Document {
   tier: string;
   memberSince: string;
   avatarUrl: string;
+  birthday: string;
+  gender: string;
   savedAddresses: ISavedAddress[];
   savedCards: ISavedCard[];
   createdAt: Date;
@@ -88,6 +90,8 @@ const UserProfileSchema = new Schema<IUserProfile>(
       default: () => new Date().toISOString().split("T")[0],
     },
     avatarUrl: { type: String, default: "" },
+    birthday: { type: String, default: "" },
+    gender: { type: String, default: "" },
     savedAddresses: { type: [SavedAddressSchema], default: [] },
     savedCards: { type: [SavedCardSchema], default: [] },
   },

@@ -6,6 +6,7 @@ import {
   updateProduct,
   deleteProduct,
   updateProductStock,
+  toggleProductActive,
   addProductReview,
 } from "../controllers/product.controller";
 import { authenticate } from "../middlewares/auth";
@@ -22,6 +23,7 @@ router.post("/:id/reviews", authenticate, addProductReview);
 // Back-Office / Admin catalog endpoints
 router.post("/", createProduct);
 router.put("/:id", updateProduct);
+router.patch("/:id/toggle-active", toggleProductActive);
 router.delete("/:id", deleteProduct);
 router.patch("/:id/stock", updateProductStock);
 

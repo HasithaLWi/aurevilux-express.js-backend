@@ -1,64 +1,104 @@
 import { Request, Response } from "express";
 import { ProductModel } from "../models/product.model";
 import { AuthRequest } from "../middlewares/auth";
+import { deleteFromSupabase } from "../utils/supabase";
 
 export const getAllProducts = async (req: Request, res: Response) => {
   try {
     const {
       category,
+      department,
+      subcategory,
       brand,
       minPrice,
       maxPrice,
       q,
+      search,
       sort,
       inStock,
       isBestSeller,
       isNewArrival,
+      includeInactive,
       page = "1",
       limit = "50",
     } = req.query;
 
-    const filter: Record<string, any> = {};
+    const conditions: Record<string, any>[] = [
+      { isDeleted: { $ne: true } },
+    ];
+
+    // Consumers only see active products; management passes includeInactive=true
+    if (includeInactive !== "true") {
+      conditions.push({ isActive: { $ne: false } });
+    }
 
     if (category && category !== "all") {
-      filter.category = category;
+      const catVal = String(category).toLowerCase();
+      conditions.push({
+        $or: [
+          { category: catVal },
+          { department: catVal },
+        ],
+      });
+    }
+
+    if (department && department !== "all") {
+      conditions.push({ department: String(department).toLowerCase() });
+    }
+
+    if (subcategory && subcategory !== "all") {
+      conditions.push({ subcategory: new RegExp(`^${subcategory}$`, "i") });
     }
 
     if (brand && brand !== "all") {
-      filter.brand = new RegExp(`^${brand}$`, "i");
+      conditions.push({ brand: new RegExp(`^${brand}$`, "i") });
     }
 
     if (inStock !== undefined) {
-      filter.inStock = inStock === "true";
+      conditions.push({ inStock: inStock === "true" });
     }
 
     if (isBestSeller !== undefined) {
-      filter.isBestSeller = isBestSeller === "true";
+      conditions.push({ isBestSeller: isBestSeller === "true" });
     }
 
     if (isNewArrival !== undefined) {
-      filter.isNewArrival = isNewArrival === "true";
+      conditions.push({ isNewArrival: isNewArrival === "true" });
     }
 
     if (minPrice || maxPrice) {
-      filter.price = {};
-      if (minPrice) filter.price.$gte = Number(minPrice);
-      if (maxPrice) filter.price.$lte = Number(maxPrice);
+      const priceCondition: Record<string, any> = {};
+      if (minPrice) priceCondition.$gte = Number(minPrice);
+      if (maxPrice) priceCondition.$lte = Number(maxPrice);
+      conditions.push({ price: priceCondition });
     }
 
-    if (q) {
-      const searchRegex = new RegExp(String(q), "i");
-      filter.$or = [
-        { name: searchRegex },
-        { description: searchRegex },
-        { brand: searchRegex },
-        { categoryLabel: searchRegex },
-      ];
+    // Search bar optimization: Searches product name, department, category, subcategory & maison
+    const querySearch = (q || search || "").toString().trim();
+    if (querySearch) {
+      const isExactShort = querySearch.toLowerCase() === "men";
+      const searchRegex = isExactShort
+        ? new RegExp("(^|\\s|/)men($|\\s|/)", "i")
+        : new RegExp(querySearch, "i");
+
+      conditions.push({
+        $or: [
+          { name: searchRegex },
+          { department: isExactShort ? "men" : searchRegex },
+          { category: isExactShort ? "men" : searchRegex },
+          { categoryLabel: searchRegex },
+          { subcategory: searchRegex },
+          { brand: searchRegex },
+          { description: searchRegex },
+        ],
+      });
     }
+
+    const filter = conditions.length === 1 ? conditions[0] : { $and: conditions };
 
     let sortOptions: Record<string, any> = { createdAt: -1 };
-    if (sort === "price_asc") sortOptions = { price: 1 };
-    else if (sort === "price_desc") sortOptions = { price: -1 };
+    if (sort === "price_asc" || sort === "price-low-high") sortOptions = { price: 1 };
+    else if (sort === "price_desc" || sort === "price-high-low") sortOptions = { price: -1 };
     else if (sort === "rating") sortOptions = { rating: -1 };
     else if (sort === "newest") sortOptions = { createdAt: -1 };
 
@@ -89,7 +129,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
 
 export const getProductByIdOrSlug = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
 
     let product = null;
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -123,6 +163,12 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     }
 
+    if (productData.images && Array.isArray(productData.images) && productData.images.length > 5) {
+      return res.status(400).json({
+        message: "A maximum of 5 product images are permitted.",
+      });
+    }
+
     // Auto-generate slug if missing
     if (!productData.slug) {
       productData.slug = productData.name
@@ -137,7 +183,11 @@ export const createProduct = async (req: Request, res: Response) => {
       productData.slug = `${productData.slug}-${Date.now().toString().slice(-4)}`;
     }
 
-    const newProduct = new ProductModel(productData);
+    const newProduct = new ProductModel({
+      ...productData,
+      isActive: productData.isActive !== undefined ? productData.isActive : true,
+      isDeleted: false,
+    });
     await newProduct.save();
 
     return res.status(201).json({
@@ -152,10 +202,20 @@ export const createProduct = async (req: Request, res: Response) => {
 
 export const updateProduct = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const updateData = req.body;
 
-    const product = await ProductModel.findByIdAndUpdate(id, updateData, {
+    if (updateData.images && Array.isArray(updateData.images) && updateData.images.length > 5) {
+      return res.status(400).json({
+        message: "A maximum of 5 product images are permitted.",
+      });
+    }
+
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { _id: id }
+      : { slug: id.toLowerCase() };
+
+    const product = await ProductModel.findOneAndUpdate(query, updateData, {
       new: true,
       runValidators: true,
     });
@@ -174,17 +234,60 @@ export const updateProduct = async (req: Request, res: Response) => {
   }
 };
 
+export const toggleProductActive = async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { _id: id }
+      : { slug: id.toLowerCase() };
+
+    const product = await ProductModel.findOne(query);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    product.isActive = !product.isActive;
+    await product.save();
+
+    return res.status(200).json({
+      message: `Product visibility set to ${product.isActive ? "Active (Visible in Store)" : "Inactive (Hidden from Store)"}`,
+      data: { id: product._id, isActive: product.isActive },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: "Failed to toggle product status", error: error.message });
+  }
+};
+
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { _id: id }
+      : { slug: id.toLowerCase() };
 
-    const product = await ProductModel.findByIdAndDelete(id);
+    const product = await ProductModel.findOne(query);
     if (!product) {
       return res.status(404).json({ message: "Product not found to delete" });
     }
 
+    // Soft delete product
+    product.isDeleted = true;
+    product.isActive = false;
+    await product.save();
+
+    // Purge associated images from Supabase Storage
+    if (product.images && product.images.length > 0) {
+      for (const imgUrl of product.images) {
+        try {
+          await deleteFromSupabase(imgUrl);
+        } catch (supabaseErr) {
+          console.warn(`Could not purge image ${imgUrl} from Supabase:`, supabaseErr);
+        }
+      }
+    }
+
     return res.status(200).json({
-      message: "Product removed from catalog",
+      message: "Product soft-deleted and images purged from storage",
       data: { id: product._id, name: product.name },
     });
   } catch (error: any) {
@@ -195,7 +298,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
 
 export const updateProductStock = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { stockCount } = req.body;
 
     if (stockCount === undefined || typeof stockCount !== "number") {
@@ -203,8 +306,12 @@ export const updateProductStock = async (req: Request, res: Response) => {
     }
 
     const inStock = stockCount > 0;
-    const product = await ProductModel.findByIdAndUpdate(
-      id,
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { _id: id }
+      : { slug: id.toLowerCase() };
+
+    const product = await ProductModel.findOneAndUpdate(
+      query,
       { stockCount, inStock },
       { new: true }
     );

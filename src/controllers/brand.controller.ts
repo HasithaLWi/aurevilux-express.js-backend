@@ -1,10 +1,16 @@
 import { Request, Response } from "express";
 import { BrandModel } from "../models/brand.model";
 import { BrandAppModel } from "../models/brandApp.model";
+import { deleteFromSupabase } from "../utils/supabase";
 
-export const getAllBrands = async (_req: Request, res: Response) => {
+export const getAllBrands = async (req: Request, res: Response) => {
   try {
-    const brands = await BrandModel.find().sort({ name: 1 });
+    const { includeInactive } = req.query;
+    const filter: Record<string, any> = { isDeleted: { $ne: true } };
+    if (includeInactive !== "true") {
+      filter.isActive = { $ne: false };
+    }
+    const brands = await BrandModel.find(filter).sort({ name: 1 });
     return res.status(200).json({
       message: "Brands fetched successfully",
       data: brands,
@@ -16,7 +22,7 @@ export const getAllBrands = async (_req: Request, res: Response) => {
 
 export const getBrandByIdOrSlug = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     let brand = null;
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
       brand = await BrandModel.findById(id);
@@ -91,8 +97,12 @@ export const createBrand = async (req: Request, res: Response) => {
 
 export const updateBrand = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const brand = await BrandModel.findByIdAndUpdate(id, req.body, { new: true });
+    const id = String(req.params.id);
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { _id: id }
+      : { slug: id.toLowerCase() };
+
+    const brand = await BrandModel.findOneAndUpdate(query, req.body, { new: true });
     if (!brand) {
       return res.status(404).json({ message: "Brand not found" });
     }
@@ -102,14 +112,55 @@ export const updateBrand = async (req: Request, res: Response) => {
   }
 };
 
+export const toggleBrandActive = async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { _id: id }
+      : { slug: id.toLowerCase() };
+
+    const brand = await BrandModel.findOne(query);
+    if (!brand) return res.status(404).json({ message: "Brand not found" });
+
+    brand.isActive = !brand.isActive;
+    await brand.save();
+
+    return res.status(200).json({
+      message: `Brand status updated to ${brand.isActive ? "Active" : "Inactive"}`,
+      data: brand,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: "Failed to toggle brand status", error: error.message });
+  }
+};
+
 export const deleteBrand = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const brand = await BrandModel.findByIdAndDelete(id);
+    const id = String(req.params.id);
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { _id: id }
+      : { slug: id.toLowerCase() };
+
+    const brand = await BrandModel.findOne(query);
     if (!brand) {
       return res.status(404).json({ message: "Brand not found" });
     }
-    return res.status(200).json({ message: "Brand deleted successfully", data: { id: brand._id } });
+
+    brand.isDeleted = true;
+    brand.isActive = false;
+    await brand.save();
+
+    if (brand.logo) {
+      try { await deleteFromSupabase(brand.logo); } catch {}
+    }
+    if (brand.campaignImage) {
+      try { await deleteFromSupabase(brand.campaignImage); } catch {}
+    }
+
+    return res.status(200).json({
+      message: "Brand house soft-deleted and assets purged",
+      data: { id: brand._id, name: brand.name },
+    });
   } catch (error: any) {
     return res.status(500).json({ message: "Failed to delete brand", error: error.message });
   }

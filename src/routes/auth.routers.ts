@@ -1,15 +1,27 @@
-import { Router } from "express"
-import { getMyDetails, getRrefreshToken, login, register } from "./../controllers/auth.controller"
-import { authenticate } from "../middlewares/auth"
+import { Router } from "express";
+import {
+  getMyDetails,
+  getRrefreshToken,
+  login,
+  register,
+  googleAuth,
+  registerWithInvite,
+  verifyInvite,
+  forgotPassword,
+  resetPassword,
+} from "../controllers/auth.controller";
+import { authenticate } from "../middlewares/auth";
 
-const router = Router()
+const router = Router();
 
-// public
-router.post("/login", login)
-router.post("/register", register)
-router.post("/refresh", getRrefreshToken)
+router.post("/register", register);
+router.post("/register-invite", registerWithInvite);
+router.get("/verify-invite/:token", verifyInvite);
+router.post("/login", login);
+router.post("/google", googleAuth);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
+router.get("/me", authenticate, getMyDetails);
+router.post("/refresh-token", getRrefreshToken);
 
-// protected
-router.get("/me", authenticate, getMyDetails)
-
-export default router
+export default router;

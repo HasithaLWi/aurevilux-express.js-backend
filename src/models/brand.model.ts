@@ -7,6 +7,8 @@ export interface IBrand extends Document {
   campaignImage: string;
   description: string;
   featured: boolean;
+  isActive: boolean;
+  isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +21,8 @@ const BrandSchema = new Schema<IBrand>(
     campaignImage: { type: String, default: "" },
     description: { type: String, default: "" },
     featured: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: true, index: true },
+    isDeleted: { type: Boolean, default: false, index: true },
   },
   {
     timestamps: true,

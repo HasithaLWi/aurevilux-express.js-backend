@@ -1,9 +1,15 @@
 import { Request, Response } from "express";
 import { CategoryModel } from "../models/category.model";
 
-export const getAllCategories = async (_req: Request, res: Response) => {
+export const getAllCategories = async (req: Request, res: Response) => {
   try {
-    const categories = await CategoryModel.find().sort({ createdAt: 1 });
+    const { department } = req.query;
+    const filter: Record<string, any> = {};
+    if (department && department !== "all") {
+      filter.department = department;
+    }
+
+    const categories = await CategoryModel.find(filter).sort({ createdAt: 1 });
     return res.status(200).json({
       message: "Categories fetched successfully",
       data: categories,
@@ -15,7 +21,8 @@ export const getAllCategories = async (_req: Request, res: Response) => {
 
 export const getCategoryById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const rawId = req.params.id;
+    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
     let cat = null;
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
       cat = await CategoryModel.findById(id);
@@ -34,7 +41,8 @@ export const getCategoryById = async (req: Request, res: Response) => {
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
-    const { title, description, image, link, buttonText } = req.body;
+    const { title, department, parentCategory, subcategories, description, image, link, buttonText } =
+      req.body;
     if (!title) {
       return res.status(400).json({ message: "Category title is required" });
     }
@@ -43,10 +51,14 @@ export const createCategory = async (req: Request, res: Response) => {
     const newCat = new CategoryModel({
       title,
       slug,
+      department: department || "all",
+      parentCategory: parentCategory || "",
+      subcategories: Array.isArray(subcategories) ? subcategories : [],
       description,
       image,
       link: link || `/shop?category=${slug}`,
       buttonText: buttonText || "EXPLORE COLLECTION",
+      isActive: true,
     });
 
     await newCat.save();
@@ -81,4 +93,3 @@ export const deleteCategory = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Failed to delete category", error: error.message });
   }
 };
-
