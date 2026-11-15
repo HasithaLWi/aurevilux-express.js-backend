@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { OrderModel } from "../models/order.model";
+import { ProductModel } from "../models/product.model";
 import { AuthRequest } from "../middlewares/auth";
 
 export const createOrder = async (req: AuthRequest, res: Response) => {
@@ -10,6 +11,22 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({
         message: "Missing order details: items, total, customer info, and shipping address are required.",
       });
+    }
+
+    // ── Stock pre-validation ──────────────────────────────────────────────
+    for (const item of items) {
+      if (!item.productId) continue;
+      const product = await ProductModel.findById(item.productId);
+      if (!product || product.isDeleted) {
+        return res.status(400).json({ message: `Product not found: ${item.name || item.productId}` });
+      }
+      if (!product.inStock || product.stockCount < item.quantity) {
+        return res.status(409).json({
+          message: `"${product.name}" is out of stock or has insufficient quantity. Available: ${product.stockCount}`,
+          productId: product._id,
+          available: product.stockCount,
+        });
+      }
     }
 
     const orderNumber = `AUR-${new Date().getFullYear()}-${Math.floor(
@@ -36,7 +53,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       itemsCount,
       customer,
       shippingAddress,
-      status: "Pending", // Starts at Pending so customer can cancel before processing
+      status: "Pending",
       paymentStatus: "Paid",
       carrier: "DHL White Glove Concierge",
       trackingNumber: `EXP-${Math.floor(10000000 + Math.random() * 90000000)}`,
@@ -50,6 +67,19 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     });
 
     await newOrder.save();
+
+    // ── Decrement stock after successful order creation ───────────────────
+    for (const item of items) {
+      if (!item.productId) continue;
+      const updated = await ProductModel.findByIdAndUpdate(
+        item.productId,
+        { $inc: { stockCount: -item.quantity } },
+        { new: true }
+      );
+      if (updated && updated.stockCount <= 0) {
+        await ProductModel.findByIdAndUpdate(item.productId, { inStock: false, stockCount: 0 });
+      }
+    }
 
     return res.status(201).json({
       message: "Order placed successfully",
@@ -150,6 +180,15 @@ export const cancelOrderCustomer = async (req: AuthRequest, res: Response) => {
       completed: true,
     });
 
+    // ── Restore stock on customer cancellation ────────────────────────────
+    for (const item of order.items) {
+      if (!item.productId) continue;
+      await ProductModel.findByIdAndUpdate(
+        item.productId,
+        { $inc: { stockCount: item.quantity }, inStock: true }
+      );
+    }
+
     await order.save();
 
     return res.status(200).json({
@@ -208,6 +247,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Order not found." });
     }
 
+    const previousStatus = order.status;
     order.status = status;
     order.timeline.push({
       title: note || `Status updated to ${status}`,
@@ -216,6 +256,17 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     });
 
     await order.save();
+
+    // ── Restore stock if admin cancels an order ───────────────────────────
+    if (status === "Cancelled" && previousStatus !== "Cancelled") {
+      for (const item of order.items) {
+        if (!item.productId) continue;
+        await ProductModel.findByIdAndUpdate(
+          item.productId,
+          { $inc: { stockCount: item.quantity }, inStock: true }
+        );
+      }
+    }
 
     return res.status(200).json({
       message: "Order status updated successfully",
@@ -240,13 +291,62 @@ export const updateOrderTracking = async (req: Request, res: Response) => {
     if (trackingNumber) order.trackingNumber = trackingNumber;
     if (estimatedDelivery) order.estimatedDelivery = estimatedDelivery;
 
+    // Automatically transition to 'In Transit' when tracking is provided
+    if (["Pending", "Confirmed", "Processing"].includes(order.status)) {
+      order.status = "In Transit";
+      order.timeline.push({
+        title: `Dispatched via ${carrier || "Express Courier"} (AWB: ${trackingNumber || "Assigned"})`,
+        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        completed: true,
+      });
+    }
+
     await order.save();
 
     return res.status(200).json({
-      message: "Tracking details updated",
+      message: "Tracking details updated and order transitioned to In Transit",
       data: order,
     });
   } catch (error: any) {
     return res.status(500).json({ message: "Failed to update tracking", error: error.message });
+  }
+};
+
+// ─── Cart Stock Validation (pre-checkout) ────────────────────────────────────
+export const validateCart = async (req: Request, res: Response) => {
+  try {
+    const { items } = req.body; // Array of { productId, quantity }
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ message: "items array is required" });
+    }
+
+    const unavailable: any[] = [];
+
+    for (const item of items) {
+      if (!item.productId) continue;
+      const product = await ProductModel.findById(item.productId).select(
+        "name inStock stockCount isDeleted"
+      );
+      if (
+        !product ||
+        product.isDeleted ||
+        !product.inStock ||
+        product.stockCount < item.quantity
+      ) {
+        unavailable.push({
+          productId: item.productId,
+          name: product?.name || "Unknown",
+          available: product?.stockCount ?? 0,
+          requested: item.quantity,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      valid: unavailable.length === 0,
+      unavailable,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: "Cart validation failed", error: error.message });
   }
 };

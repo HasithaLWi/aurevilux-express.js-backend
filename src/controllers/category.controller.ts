@@ -3,10 +3,13 @@ import { CategoryModel } from "../models/category.model";
 
 export const getAllCategories = async (req: Request, res: Response) => {
   try {
-    const { department } = req.query;
-    const filter: Record<string, any> = {};
+    const { department, includeInactive } = req.query;
+    const filter: Record<string, any> = { isDeleted: { $ne: true } };
     if (department && department !== "all") {
       filter.department = department;
+    }
+    if (includeInactive !== "true") {
+      filter.isActive = { $ne: false };
     }
 
     const categories = await CategoryModel.find(filter).sort({ createdAt: 1 });
@@ -81,14 +84,52 @@ export const updateCategory = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteCategory = async (req: Request, res: Response) => {
+export const toggleCategoryActive = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const cat = await CategoryModel.findByIdAndDelete(id);
+    const rawId = req.params.id;
+    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
+    let cat = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      cat = await CategoryModel.findById(id);
+    }
+    if (!cat) {
+      cat = await CategoryModel.findOne({ slug: id.toLowerCase() });
+    }
     if (!cat) {
       return res.status(404).json({ message: "Category not found" });
     }
-    return res.status(200).json({ message: "Category deleted", data: { id: cat._id } });
+
+    cat.isActive = !cat.isActive;
+    await cat.save();
+
+    return res.status(200).json({
+      message: `Category visibility updated to ${cat.isActive ? "Active" : "Inactive"}`,
+      data: cat,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: "Failed to toggle category status", error: error.message });
+  }
+};
+
+export const deleteCategory = async (req: Request, res: Response) => {
+  try {
+    const rawId = req.params.id;
+    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
+    let cat = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      cat = await CategoryModel.findById(id);
+    }
+    if (!cat) {
+      cat = await CategoryModel.findOne({ slug: id.toLowerCase() });
+    }
+    if (!cat) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    cat.isDeleted = true;
+    await cat.save();
+
+    return res.status(200).json({ message: "Category soft-deleted successfully", data: { id: cat._id } });
   } catch (error: any) {
     return res.status(500).json({ message: "Failed to delete category", error: error.message });
   }

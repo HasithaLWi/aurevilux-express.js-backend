@@ -403,3 +403,61 @@ export const toggleCustomerActive = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Failed to toggle customer status", error: error.message });
   }
 };
+
+// ─── Staff Approval Queue ────────────────────────────────────────────────────
+
+export const getPendingStaffApprovals = async (_req: Request, res: Response) => {
+  try {
+    const pending = await UserModel.find({
+      roles: { $in: [UserRole.STAFF, UserRole.ADMIN] },
+      approve: false,
+      isDeleted: false,
+    })
+      .select("-password -resetPasswordToken -resetPasswordExpires")
+      .sort({ createdAt: -1 });
+    return res.status(200).json({ data: pending });
+  } catch (err: any) {
+    return res.status(500).json({ message: "Failed to fetch pending approvals", error: err.message });
+  }
+};
+
+export const approveStaffMember = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await UserModel.findByIdAndUpdate(
+      id,
+      { approve: true, isActive: true },
+      { new: true }
+    ).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.status(200).json({ message: "Staff member approved", data: user });
+  } catch (err: any) {
+    return res.status(500).json({ message: "Approval failed", error: err.message });
+  }
+};
+
+export const rejectStaffMember = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await UserModel.findByIdAndUpdate(
+      id,
+      { approve: false, isActive: false, isDeleted: true },
+      { new: true }
+    ).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.status(200).json({ message: "Staff member rejected and removed", data: user });
+  } catch (err: any) {
+    return res.status(500).json({ message: "Rejection failed", error: err.message });
+  }
+};
+
+export const revokeInvitation = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const invite = await InviteModel.findByIdAndDelete(id);
+    if (!invite) return res.status(404).json({ message: "Invitation not found" });
+    return res.status(200).json({ message: "Invitation revoked successfully" });
+  } catch (err: any) {
+    return res.status(500).json({ message: "Failed to revoke invitation", error: err.message });
+  }
+};

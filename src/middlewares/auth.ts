@@ -29,3 +29,21 @@ export const authenticate = (
     res.status(401).json({ message: "Invalid or expire token..!" })
   }
 }
+
+// Optional auth — attaches user if token present, continues as guest if not
+export const optionalAuthenticate = (
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader) return next()
+  const token = authHeader.split(" ")[1]
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+    req.user = payload
+  } catch (_) {
+    // Invalid token = treat as unauthenticated guest
+  }
+  next()
+}

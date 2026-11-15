@@ -3,39 +3,75 @@ import { UserRole, UserStatus } from "../models/user.model";
 
 export const SEED_CATEGORIES = [
   {
-    title: "WOMEN",
-    slug: "women",
-    description:
-      "Redefine your style with our latest women's collection. Discover bold statements and everyday elegance.",
+    title: "Gowns",
+    slug: "gowns",
+    description: "Haute couture evening wear, silk wrap gowns, and floor-length silhouettes.",
     image: "/images/fashion_models/featured_categories_women.jpeg",
-    link: "/shop?category=women",
+    link: "/shop?category=gowns",
     isActive: true,
   },
   {
-    title: "MEN",
-    slug: "men",
-    description:
-      "Explore the latest trends in men's fashion. From sharp tailoring to casual essentials, find your perfect look.",
-    image: "/images/fashion_models/featured_categories_men.jpeg",
-    link: "/shop?category=men",
+    title: "Coats",
+    slug: "coats",
+    description: "Double-breasted trench coats, melton virgin wool overcoats, and weather-resistant gabardine.",
+    image: "/images/products/MONOCHROME COAT.jpeg",
+    link: "/shop?category=coats",
     isActive: true,
   },
   {
-    title: "ACCESSORIES",
-    slug: "accessories",
-    description:
-      "Complete your look with our premium collection of accessories. From statement jewelry to essential bags, find the perfect finishing touch.",
+    title: "Jackets",
+    slug: "jackets",
+    description: "Tailored full-grain calfskin moto jackets and architectural outerwear.",
+    image: "/images/products/ASTRAL MOTO JACKET.jpeg",
+    link: "/shop?category=jackets",
+    isActive: true,
+  },
+  {
+    title: "Blazers",
+    slug: "blazers",
+    description: "Structured double-breasted formal blazers with bespoke horsehair canvas tailoring.",
+    image: "/images/products/ONIX TAILORED BLAZER.jpeg",
+    link: "/shop?category=blazers",
+    isActive: true,
+  },
+  {
+    title: "Bags",
+    slug: "bags",
+    description: "Curved saddle bags and structured leather clutches handcrafted in Florence.",
+    image: "/images/products/SERPENTINE SADDLE BAG.jpeg",
+    link: "/shop?category=bags",
+    isActive: true,
+  },
+  {
+    title: "Shoes",
+    slug: "shoes",
+    description: "Goodyear-welted French calfskin derbies and Italian duchess satin pumps.",
     image: "/images/products/featured_categories_accessories.jpeg",
-    link: "/shop?category=accessories",
+    link: "/shop?category=shoes",
     isActive: true,
   },
   {
-    title: "NEW ARRIVALS",
-    slug: "new-arrivals",
-    description:
-      "Discover the latest additions to our collection. Fresh styles and trending pieces just arrived.",
-    image: "/images/fashion_models/featured_categories_new_arrivals.jpeg",
-    link: "/shop?category=new-arrivals",
+    title: "Watches",
+    slug: "watches",
+    description: "Swiss automatic chronometers, column-wheel calibers, and titanium horology.",
+    image: "/images/products/featured_categories_accessories.jpeg",
+    link: "/shop?category=watches",
+    isActive: true,
+  },
+  {
+    title: "Jewelry",
+    slug: "jewelry",
+    description: "18k solid gold celestial pendants and certified brilliant-cut diamond creations.",
+    image: "/images/products/featured_categories_accessories.jpeg",
+    link: "/shop?category=jewelry",
+    isActive: true,
+  },
+  {
+    title: "Scarves",
+    slug: "scarves",
+    description: "Grade-A Mongolian pure cashmere fringe scarves and fine silk foulards.",
+    image: "/images/products/featured_categories_accessories.jpeg",
+    link: "/shop?category=scarves",
     isActive: true,
   },
 ];
@@ -46,8 +82,7 @@ export const SEED_BRANDS = [
     slug: "saint-laurent",
     logo: "/images/brands/calvin_klein.png",
     campaignImage: "/images/backgrounds/hero_section_image_03.jpeg",
-    description:
-      "Parisian elegance, sharp tailoring, and iconic haute couture silhouettes.",
+    description: "Parisian elegance, sharp tailoring, and iconic haute couture silhouettes.",
     featured: true,
     isActive: true,
     isDeleted: false,
@@ -57,8 +92,7 @@ export const SEED_BRANDS = [
     slug: "gucci",
     logo: "/images/brands/gucci.png",
     campaignImage: "/images/fashion_models/model_red_dress_01.jpeg",
-    description:
-      "Eclectic, contemporary, romantic—representing the pinnacle of Italian craftsmanship.",
+    description: "Eclectic, contemporary, romantic—representing the pinnacle of Italian craftsmanship.",
     featured: true,
     isActive: true,
     isDeleted: false,
@@ -68,8 +102,7 @@ export const SEED_BRANDS = [
     slug: "hermes",
     logo: "/images/brands/tommy_hilfiger.png",
     campaignImage: "/images/backgrounds/hero_section_image_01.jpeg",
-    description:
-      "Artisanal excellence in leathercraft, horology, and bespoke silk creations.",
+    description: "Artisanal excellence in leathercraft, horology, and bespoke silk creations.",
     featured: true,
     isActive: true,
     isDeleted: false,
@@ -79,8 +112,7 @@ export const SEED_BRANDS = [
     slug: "burberry",
     logo: "/images/brands/levis.png",
     campaignImage: "/images/backgrounds/hero_section_image_02.jpeg",
-    description:
-      "Heritage British luxury defined by iconic trench coats and architectural outerwear.",
+    description: "Heritage British luxury defined by iconic trench coats and architectural outerwear.",
     featured: true,
     isActive: true,
     isDeleted: false,
@@ -90,8 +122,7 @@ export const SEED_BRANDS = [
     slug: "cartier",
     logo: "/images/brands/nike.png",
     campaignImage: "/images/backgrounds/background_1.jpeg",
-    description:
-      "The jeweler of kings and king of jewelers—haute horology and fine diamond masterpieces.",
+    description: "The jeweler of kings and king of jewelers—haute horology and fine diamond masterpieces.",
     featured: true,
     isActive: true,
     isDeleted: false,
@@ -101,8 +132,7 @@ export const SEED_BRANDS = [
     slug: "chanel",
     logo: "/images/brands/zara.png",
     campaignImage: "/images/backgrounds/new_collection_section_image.jpeg",
-    description:
-      "Timeless Parisian luxury, tweed tailoring, and iconic leather accessories.",
+    description: "Timeless Parisian luxury, tweed tailoring, and iconic leather accessories.",
     featured: true,
     isActive: true,
     isDeleted: false,
@@ -145,7 +175,7 @@ export const SEED_USERS_RAW = [
     username: "admin",
     email: "admin@aurevilux.com",
     plainPassword: "admin123",
-    roles: [UserRole.SUPERADMIN],
+    roles: [UserRole.SUPERADMIN, UserRole.ADMIN],
     status: [UserStatus.ACTIVE],
     approve: true,
     authProvider: "local" as const,
@@ -188,7 +218,7 @@ export const SEED_RAW_PRODUCTS = [
     price: 1290,
     rating: 5,
     reviewsCount: 0,
-    categorySlug: "women",
+    categorySlug: "gowns",
     categoryLabel: "WOMEN / GOWNS",
     department: [Departments.WOMEN],
     description:
@@ -224,8 +254,8 @@ export const SEED_RAW_PRODUCTS = [
     price: 1850,
     rating: 5,
     reviewsCount: 1,
-    categorySlug: "men",
-    categoryLabel: "MEN / COATS",
+    categorySlug: "jackets",
+    categoryLabel: "MEN / JACKETS",
     department: [Departments.MEN],
     description:
       "Tailored architectural lines meet rugged leather heritage with custom brushed silver hardware.",
@@ -263,9 +293,9 @@ export const SEED_RAW_PRODUCTS = [
     price: 980,
     rating: 5,
     reviewsCount: 2,
-    categorySlug: "men",
-    categoryLabel: "MEN / COATS",
-    department: [Departments.MEN, Departments.NEWARRIVALS],
+    categorySlug: "blazers",
+    categoryLabel: "MEN / BLAZERS",
+    department: [Departments.MEN],
     description:
       "Structured double-breasted formal blazer sculpted with bespoke horsehair canvas internals.",
     longDescription:
@@ -295,7 +325,7 @@ export const SEED_RAW_PRODUCTS = [
     price: 2450,
     rating: 5.0,
     reviewsCount: 42,
-    categorySlug: "accessories",
+    categorySlug: "bags",
     categoryLabel: "ACCESSORIES / BAGS",
     department: [Departments.ACCESSORIES],
     description:
@@ -327,9 +357,9 @@ export const SEED_RAW_PRODUCTS = [
     price: 1650,
     rating: 4.9,
     reviewsCount: 31,
-    categorySlug: "women",
+    categorySlug: "coats",
     categoryLabel: "WOMEN / COATS",
-    department: [Departments.WOMEN, Departments.NEWARRIVALS],
+    department: [Departments.WOMEN],
     description:
       "Water-repellent structured gabardine double-breasted trench with horn buckles and storm flap.",
     longDescription:
@@ -358,7 +388,7 @@ export const SEED_RAW_PRODUCTS = [
     price: 3400,
     rating: 5.0,
     reviewsCount: 18,
-    categorySlug: "women",
+    categorySlug: "gowns",
     categoryLabel: "WOMEN / GOWNS",
     department: [Departments.WOMEN],
     description:
@@ -393,9 +423,9 @@ export const SEED_RAW_PRODUCTS = [
     price: 890,
     rating: 4.8,
     reviewsCount: 22,
-    categorySlug: "men",
+    categorySlug: "shoes",
     categoryLabel: "MEN / SHOES",
-    department: [Departments.MEN, Departments.NEWARRIVALS],
+    department: [Departments.MEN],
     description:
       "Goodyear-welted black leather derbies with high-shine French calfskin and hand-stitched welt.",
     longDescription:
@@ -422,7 +452,7 @@ export const SEED_RAW_PRODUCTS = [
     price: 4200,
     rating: 4.9,
     reviewsCount: 39,
-    categorySlug: "accessories",
+    categorySlug: "watches",
     categoryLabel: "ACCESSORIES / WATCHES",
     department: [Departments.ACCESSORIES],
     description:
@@ -454,9 +484,9 @@ export const SEED_RAW_PRODUCTS = [
     price: 450,
     rating: 4.7,
     reviewsCount: 15,
-    categorySlug: "accessories",
+    categorySlug: "scarves",
     categoryLabel: "ACCESSORIES / SCARVES",
-    department: [Departments.ACCESSORIES, Departments.NEWARRIVALS],
+    department: [Departments.ACCESSORIES],
     description:
       "Grade-A Mongolian pure cashmere fringe scarf woven with whisper-soft brushed texture.",
     longDescription:
@@ -487,7 +517,7 @@ export const SEED_RAW_PRODUCTS = [
     price: 5800,
     rating: 5.0,
     reviewsCount: 9,
-    categorySlug: "accessories",
+    categorySlug: "jewelry",
     categoryLabel: "ACCESSORIES / JEWELRY",
     department: [Departments.ACCESSORIES],
     description:
@@ -516,9 +546,9 @@ export const SEED_RAW_PRODUCTS = [
     price: 950,
     rating: 4.8,
     reviewsCount: 16,
-    categorySlug: "women",
+    categorySlug: "shoes",
     categoryLabel: "WOMEN / SHOES",
-    department: [Departments.WOMEN, Departments.NEWARRIVALS],
+    department: [Departments.WOMEN],
     description:
       "105mm pointed-toe satin pumps with crystal-adorned ankle arch and lacquered leather soles.",
     longDescription:
@@ -548,7 +578,7 @@ export const SEED_RAW_PRODUCTS = [
     price: 2100,
     rating: 4.9,
     reviewsCount: 24,
-    categorySlug: "men",
+    categorySlug: "coats",
     categoryLabel: "MEN / COATS",
     department: [Departments.MEN],
     description:

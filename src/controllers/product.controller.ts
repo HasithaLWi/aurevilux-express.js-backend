@@ -117,6 +117,22 @@ export const getAllProducts = async (req: Request, res: Response) => {
         { description: searchRegex },
       ];
 
+      // Smart Intent Detection: "new", "new arrivals", "best selling", "top selling"
+      const lowerSearch = querySearch.toLowerCase().trim();
+      const isNewArrivalIntent =
+        /^(new(\s*arrival(s)?)?|latest|new\s*in)$/i.test(lowerSearch) ||
+        /\b(new\s*arrival(s)?)\b/i.test(lowerSearch);
+      const isBestSellerIntent =
+        /^(best\s*seller(s)?|best\s*selling|top\s*seller(s)?|top\s*selling|popular)$/i.test(lowerSearch) ||
+        /\b(best\s*seller(s)?|best\s*selling|top\s*seller(s)?|top\s*selling)\b/i.test(lowerSearch);
+
+      if (isNewArrivalIntent) {
+        orConditions.push({ isNewArrival: true });
+      }
+      if (isBestSellerIntent) {
+        orConditions.push({ isBestSeller: true });
+      }
+
       if (brandIds.length > 0) {
         orConditions.push({ brand: { $in: brandIds } });
       }
@@ -533,7 +549,8 @@ export const updateProductStock = async (req: Request, res: Response) => {
 
 export const addProductReview = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const rawId = req.params.id;
+    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
     const { name, rating, comment } = req.body;
 
     if (!name || !rating || !comment) {
@@ -542,7 +559,14 @@ export const addProductReview = async (req: AuthRequest, res: Response) => {
         .json({ message: "Name, rating (1-5), and comment are required." });
     }
 
-    const product = await ProductModel.findById(id);
+    let product = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      product = await ProductModel.findById(id);
+    }
+    if (!product) {
+      product = await ProductModel.findOne({ slug: id.toLowerCase() });
+    }
+
     if (!product) {
       return res.status(404).json({ message: "Product not found to review" });
     }

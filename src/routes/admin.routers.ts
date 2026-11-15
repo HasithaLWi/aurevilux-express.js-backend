@@ -12,6 +12,10 @@ import {
   toggleStaffActive,
   getAllCustomersAdmin,
   toggleCustomerActive,
+  getPendingStaffApprovals,
+  approveStaffMember,
+  rejectStaffMember,
+  revokeInvitation,
 } from "../controllers/admin.controller";
 import { authenticate } from "../middlewares/auth";
 import { requireRole } from "../middlewares/role";
@@ -19,14 +23,71 @@ import { UserRole } from "../models/user.model";
 
 const router = Router();
 
-// Public/Staff analytics & applications
-router.get("/analytics", getDashboardAnalytics);
-router.get("/brand-applications", getBrandApplications);
-router.patch("/brand-applications/:id/status", updateBrandApplicationStatus);
-router.get("/reviews", getReviewsForModeration);
-router.delete("/reviews/:reviewId", deleteReviewAdmin);
+// Analytics (protected — admin/staff only)
+router.get(
+  "/analytics",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.STAFF]),
+  getDashboardAnalytics
+);
 
-// Staff & Team Management (Protected)
+// Brand applications (protected)
+router.get(
+  "/brand-applications",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN]),
+  getBrandApplications
+);
+router.patch(
+  "/brand-applications/:id/status",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN]),
+  updateBrandApplicationStatus
+);
+
+// Product Reviews moderation (protected)
+router.get(
+  "/reviews",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.STAFF]),
+  getReviewsForModeration
+);
+router.delete(
+  "/reviews/:reviewId",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN]),
+  deleteReviewAdmin
+);
+
+// Staff Approval Queue (SUPERADMIN/ADMIN only)
+router.get(
+  "/staff/pending-approvals",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN]),
+  getPendingStaffApprovals
+);
+router.patch(
+  "/staff/:id/approve",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN]),
+  approveStaffMember
+);
+router.patch(
+  "/staff/:id/reject",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN]),
+  rejectStaffMember
+);
+
+// Invitation management
+router.delete(
+  "/invites/:id",
+  authenticate,
+  requireRole([UserRole.SUPERADMIN, UserRole.ADMIN]),
+  revokeInvitation
+);
+
+// Staff & Team Management
 router.get(
   "/staff",
   authenticate,

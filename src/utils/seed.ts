@@ -15,6 +15,7 @@ import {
 } from "./seedData";
 
 const MONGO_URL =
+  process.env.MONGO_ATLAS_URL ||
   process.env.MONGO_LOCAL_URL ||
   "mongodb://admin:1234@localhost:27017/auravilux?authSource=admin";
 

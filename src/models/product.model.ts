@@ -4,7 +4,6 @@ export enum Departments {
   MEN = "MEN",
   WOMEN = "WOMEN",
   ACCESSORIES = "ACCESSORIES",
-  NEWARRIVALS = "NEW ARRIVALS",
 }
 
 export interface IProductColor {
@@ -107,7 +106,7 @@ const ProductSchema = new Schema<IProduct>(
     department: {
       type: [String],
       enum: Object.values(Departments),
-      default: [Departments.NEWARRIVALS],
+      default: [Departments.ACCESSORIES],
     },
     description: { type: String, required: true },
     longDescription: { type: String, default: "" },

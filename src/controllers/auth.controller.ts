@@ -116,9 +116,9 @@ export const registerWithInvite = async (req: Request, res: Response) => {
       password: hashedPassword,
       roles: [assignedRole],
       status: [UserStatus.ACTIVE],
-      approve: true,
+      approve: false,   // Must be approved by admin before login
       authProvider: "local",
-      isActive: true,
+      isActive: false,  // Inactive until approved
       isDeleted: false,
     });
 
@@ -127,19 +127,8 @@ export const registerWithInvite = async (req: Request, res: Response) => {
     invite.used = true;
     await invite.save();
 
-    const accessToken = signAccessToken(newUser);
-    const refreshToken = signRefreshToken(newUser);
-
     return res.status(201).json({
-      message: `Welcome to the Atelier. Registered as ${assignedRole}.`,
-      data: {
-        username: newUser.username,
-        name: newUser.name,
-        email: newUser.email,
-        roles: newUser.roles,
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      },
+      message: "Registration successful. Your account is pending approval by an administrator. You will be notified once your access is granted.",
     });
   } catch (err: any) {
     return res.status(500).json({ message: "Failed to register via invite", error: err.message });
@@ -189,6 +178,16 @@ export const login = async (req: Request, res: Response) => {
 
     if (user.isActive === false) {
       return res.status(403).json({ message: "Account is suspended. Please contact Atelier Concierge." });
+    }
+
+    // Staff/Admin accounts require admin approval before login
+    const isStaffAccount = user.roles?.some((r) =>
+      [UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN].includes(r as UserRole)
+    );
+    if (isStaffAccount && !user.approve) {
+      return res.status(403).json({
+        message: "Your account is pending administrator approval. Please contact the Atelier team.",
+      });
     }
 
     if (!user.password && user.authProvider === "google") {
