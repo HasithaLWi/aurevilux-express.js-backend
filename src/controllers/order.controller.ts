@@ -16,17 +16,48 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     // ── Stock pre-validation ──────────────────────────────────────────────
     for (const item of items) {
       if (!item.productId) continue;
-      const product = await ProductModel.findById(item.productId);
+
+      let product = null;
+      if (item.productId.match(/^[0-9a-fA-F]{24}$/)) {
+        product = await ProductModel.findById(item.productId);
+      }
+      if (!product) {
+        product = await ProductModel.findOne({ slug: String(item.productId).toLowerCase() });
+      }
+
       if (!product || product.isDeleted) {
         return res.status(400).json({ message: `Product not found: ${item.name || item.productId}` });
       }
       if (!product.inStock || product.stockCount < item.quantity) {
         return res.status(409).json({
-          message: `"${product.name}" is out of stock or has insufficient quantity. Available: ${product.stockCount}`,
+          message: `"${product.name}" has insufficient total atelier reserves (Requested: ${item.quantity}, Available: ${product.stockCount}).`,
           productId: product._id,
           available: product.stockCount,
         });
       }
+      // Check variant size stock if size is specified
+      if (item.selectedSize && product.sizeStock && product.sizeStock.length > 0) {
+        const sizeEntry = product.sizeStock.find((s) => s.size === item.selectedSize);
+        if (sizeEntry) {
+          if (sizeEntry.quantity <= 0) {
+            return res.status(409).json({
+              message: `"${product.name}" in Size ${item.selectedSize} is completely sold out.`,
+              productId: product._id,
+              available: 0,
+            });
+          }
+          if (sizeEntry.quantity < item.quantity) {
+            return res.status(409).json({
+              message: `"${product.name}" in Size ${item.selectedSize} only has ${sizeEntry.quantity} piece(s) available in atelier (requested: ${item.quantity}).`,
+              productId: product._id,
+              available: sizeEntry.quantity,
+            });
+          }
+        }
+      }
+
+      // Canonicalize item.productId to the verified ObjectId string
+      item.productId = product._id.toString();
     }
 
     const orderNumber = `AUR-${new Date().getFullYear()}-${Math.floor(
@@ -76,6 +107,12 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         { $inc: { stockCount: -item.quantity } },
         { new: true }
       );
+      if (item.selectedSize) {
+        await ProductModel.updateOne(
+          { _id: item.productId, "sizeStock.size": item.selectedSize },
+          { $inc: { "sizeStock.$.quantity": -item.quantity } }
+        );
+      }
       if (updated && updated.stockCount <= 0) {
         await ProductModel.findByIdAndUpdate(item.productId, { inStock: false, stockCount: 0 });
       }
@@ -112,19 +149,20 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const findOrderByIdOrNumber = async (idOrNumber?: string | string[]) => {
+  if (!idOrNumber) return null;
+  const raw = Array.isArray(idOrNumber) ? idOrNumber[0] : idOrNumber;
+  const trimmed = String(raw).trim();
+  if (trimmed.match(/^[0-9a-fA-F]{24}$/)) {
+    const byId = await OrderModel.findById(trimmed);
+    if (byId) return byId;
+  }
+  return await OrderModel.findOne({ orderNumber: trimmed.toUpperCase() });
+};
+
 export const getOrderByIdOrNumber = async (req: Request, res: Response) => {
   try {
-    const rawId = req.params.id;
-    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
-    let order = null;
-
-    if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      order = await OrderModel.findById(id);
-    }
-    if (!order) {
-      order = await OrderModel.findOne({ orderNumber: id.toUpperCase() });
-    }
-
+    const order = await findOrderByIdOrNumber(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -140,17 +178,7 @@ export const getOrderByIdOrNumber = async (req: Request, res: Response) => {
 
 export const cancelOrderCustomer = async (req: AuthRequest, res: Response) => {
   try {
-    const rawId = req.params.id;
-    const id = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
-    let order = null;
-
-    if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      order = await OrderModel.findById(id);
-    }
-    if (!order) {
-      order = await OrderModel.findOne({ orderNumber: id.toUpperCase() });
-    }
-
+    const order = await findOrderByIdOrNumber(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Order not found." });
     }
@@ -187,6 +215,12 @@ export const cancelOrderCustomer = async (req: AuthRequest, res: Response) => {
         item.productId,
         { $inc: { stockCount: item.quantity }, inStock: true }
       );
+      if (item.selectedSize) {
+        await ProductModel.updateOne(
+          { _id: item.productId, "sizeStock.size": item.selectedSize },
+          { $inc: { "sizeStock.$.quantity": item.quantity } }
+        );
+      }
     }
 
     await order.save();
@@ -242,7 +276,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Status is required." });
     }
 
-    const order = await OrderModel.findById(id);
+    const order = await findOrderByIdOrNumber(id);
     if (!order) {
       return res.status(404).json({ message: "Order not found." });
     }
@@ -265,6 +299,12 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
           item.productId,
           { $inc: { stockCount: item.quantity }, inStock: true }
         );
+        if (item.selectedSize) {
+          await ProductModel.updateOne(
+            { _id: item.productId, "sizeStock.size": item.selectedSize },
+            { $inc: { "sizeStock.$.quantity": item.quantity } }
+          );
+        }
       }
     }
 
@@ -282,7 +322,7 @@ export const updateOrderTracking = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { carrier, trackingNumber, estimatedDelivery } = req.body;
 
-    const order = await OrderModel.findById(id);
+    const order = await findOrderByIdOrNumber(id);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -324,9 +364,17 @@ export const validateCart = async (req: Request, res: Response) => {
 
     for (const item of items) {
       if (!item.productId) continue;
-      const product = await ProductModel.findById(item.productId).select(
-        "name inStock stockCount isDeleted"
-      );
+      let product = null;
+      if (item.productId.match(/^[0-9a-fA-F]{24}$/)) {
+        product = await ProductModel.findById(item.productId).select(
+          "name inStock stockCount isDeleted sizeStock"
+        );
+      }
+      if (!product) {
+        product = await ProductModel.findOne({ slug: String(item.productId).toLowerCase() }).select(
+          "name inStock stockCount isDeleted sizeStock"
+        );
+      }
       if (
         !product ||
         product.isDeleted ||
@@ -339,6 +387,18 @@ export const validateCart = async (req: Request, res: Response) => {
           available: product?.stockCount ?? 0,
           requested: item.quantity,
         });
+        continue;
+      }
+      if (item.selectedSize && product.sizeStock && product.sizeStock.length > 0) {
+        const sizeEntry = product.sizeStock.find((s) => s.size === item.selectedSize);
+        if (sizeEntry && sizeEntry.quantity < item.quantity) {
+          unavailable.push({
+            productId: item.productId,
+            name: `${product.name} (Size ${item.selectedSize})`,
+            available: sizeEntry.quantity,
+            requested: item.quantity,
+          });
+        }
       }
     }
 

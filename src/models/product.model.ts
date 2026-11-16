@@ -1,4 +1,7 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
+import "./user.model";
+import "./category.model";
+import "./brand.model";
 
 export enum Departments {
   MEN = "MEN",
@@ -9,6 +12,11 @@ export enum Departments {
 export interface IProductColor {
   name: string;
   value: string;
+}
+
+export interface IProductSizeStock {
+  size: string;
+  quantity: number;
 }
 
 export interface IProductSpec {
@@ -39,6 +47,7 @@ export interface IProduct extends Document {
   images: string[];
   colors: IProductColor[];
   sizes: string[];
+  sizeStock: IProductSizeStock[];
   brand: mongoose.Types.ObjectId;
   inStock: boolean;
   stockCount: number;
@@ -56,6 +65,14 @@ const ProductColorSchema = new Schema<IProductColor>(
   {
     name: { type: String, required: true },
     value: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+const ProductSizeStockSchema = new Schema<IProductSizeStock>(
+  {
+    size: { type: String, required: true },
+    quantity: { type: Number, required: true, default: 0, min: 0 },
   },
   { _id: false },
 );
@@ -113,6 +130,7 @@ const ProductSchema = new Schema<IProduct>(
     images: { type: [String], default: [] },
     colors: { type: [ProductColorSchema], default: [] },
     sizes: { type: [String], default: [] },
+    sizeStock: { type: [ProductSizeStockSchema], default: [] },
     brand: {
       type: mongoose.Types.ObjectId,
       required: true,

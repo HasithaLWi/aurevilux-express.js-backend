@@ -15,6 +15,8 @@ import AdminRouter from "./routes/admin.routers";
 import UploadRouter from "./routes/upload.routers";
 import FeedbackRouter from "./routes/feedback.routers";
 import NewsletterRouter from "./routes/newsletter.routers";
+import CourierRouter from "./routes/courier.routers";
+import BusinessRouter from "./routes/business.routers";
 import { seedDatabase } from "./utils/seed";
 
 const MONGO_URL = process.env.MONGO_ATLAS_URL || "";
@@ -47,6 +49,8 @@ app.use("/api/v1/admin", AdminRouter);
 app.use("/api/v1/upload", UploadRouter);
 app.use("/api/v1/feedback", FeedbackRouter);
 app.use("/api/v1/newsletter", NewsletterRouter);
+app.use("/api/v1/couriers", CourierRouter);
+app.use("/api/v1/business", BusinessRouter);
 
 mongoose
   .connect(MONGO_URL)

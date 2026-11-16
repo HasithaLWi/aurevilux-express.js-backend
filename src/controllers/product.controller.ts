@@ -30,6 +30,10 @@ export const getAllProducts = async (req: Request, res: Response) => {
     // Consumers only see active products; management passes includeInactive=true
     if (includeInactive !== "true") {
       conditions.push({ isActive: { $ne: false } });
+      // In public shop catalog: auto-hide sold-out pieces unless caller explicitly requests inStock=false
+      if (inStock === undefined) {
+        conditions.push({ inStock: { $ne: false }, stockCount: { $gt: 0 } });
+      }
     }
 
     if (category && category !== "all") {
@@ -507,22 +511,32 @@ export const deleteProduct = async (req: Request, res: Response) => {
 export const updateProductStock = async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
-    const { stockCount } = req.body;
+    const { stockCount, sizeStock } = req.body;
 
-    if (stockCount === undefined || typeof stockCount !== "number") {
+    if (stockCount === undefined && !sizeStock) {
       return res
         .status(400)
-        .json({ message: "Please provide a valid numeric stockCount." });
+        .json({ message: "Please provide a valid numeric stockCount or sizeStock array." });
     }
 
-    const inStock = stockCount > 0;
+    let finalStockCount = stockCount;
+    if (sizeStock && Array.isArray(sizeStock)) {
+      finalStockCount = sizeStock.reduce((acc: number, cur: any) => acc + (Number(cur.quantity) || 0), 0);
+    }
+
+    const inStock = finalStockCount > 0;
     const query = id.match(/^[0-9a-fA-F]{24}$/)
       ? { _id: id }
       : { slug: id.toLowerCase() };
 
+    const updateFields: Record<string, any> = { stockCount: finalStockCount, inStock };
+    if (sizeStock && Array.isArray(sizeStock)) {
+      updateFields.sizeStock = sizeStock;
+    }
+
     const product = await ProductModel.findOneAndUpdate(
       query,
-      { stockCount, inStock },
+      updateFields,
       { new: true },
     );
 
