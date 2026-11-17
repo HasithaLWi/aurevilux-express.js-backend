@@ -1,5 +1,11 @@
 import { Request, Response } from "express";
-import { uploadToSupabase, deleteFromSupabase, SUPABASE_BUCKET, SUPABASE_USER_BUCKET } from "../utils/supabase";
+import {
+  uploadToSupabase,
+  deleteFromSupabase,
+  isSupabaseStorageUrl,
+  SUPABASE_BUCKET,
+  SUPABASE_USER_BUCKET,
+} from "../utils/supabase";
 
 export const uploadSingleImage = async (req: Request, res: Response) => {
   try {
@@ -11,6 +17,16 @@ export const uploadSingleImage = async (req: Request, res: Response) => {
     const bucket =
       (req.body.bucket as string) ||
       (folder === "avatars" || folder === "users" ? SUPABASE_USER_BUCKET : SUPABASE_BUCKET);
+    const previousUrl = (req.body.previousUrl as string) || (req.body.oldUrl as string);
+
+    // If an existing image link from Supabase was provided, purge it so orphaned files don't accumulate
+    if (previousUrl && isSupabaseStorageUrl(previousUrl)) {
+      try {
+        await deleteFromSupabase(previousUrl, bucket);
+      } catch (delErr) {
+        console.warn("Notice: could not purge previous Supabase file:", delErr);
+      }
+    }
 
     const result = await uploadToSupabase(req.file, folder, bucket);
 

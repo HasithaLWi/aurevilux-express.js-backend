@@ -283,6 +283,9 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
     const previousStatus = order.status;
     order.status = status;
+    if (!order.timeline) {
+      order.timeline = [];
+    }
     order.timeline.push({
       title: note || `Status updated to ${status}`,
       date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
@@ -313,6 +316,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       data: order,
     });
   } catch (error: any) {
+    console.error("Error in updateOrderStatus:", error);
     return res.status(500).json({ message: "Failed to update order status", error: error.message });
   }
 };
@@ -328,14 +332,17 @@ export const updateOrderTracking = async (req: Request, res: Response) => {
     }
 
     if (carrier) order.carrier = carrier;
-    if (trackingNumber) order.trackingNumber = trackingNumber;
+    if (trackingNumber !== undefined) order.trackingNumber = trackingNumber;
     if (estimatedDelivery) order.estimatedDelivery = estimatedDelivery;
 
     // Automatically transition to 'In Transit' when tracking is provided
     if (["Pending", "Confirmed", "Processing"].includes(order.status)) {
       order.status = "In Transit";
+      if (!order.timeline) {
+        order.timeline = [];
+      }
       order.timeline.push({
-        title: `Dispatched via ${carrier || "Express Courier"} (AWB: ${trackingNumber || "Assigned"})`,
+        title: `Dispatched via ${carrier || "Express Courier"}${trackingNumber ? ` (AWB: ${trackingNumber})` : ""}`,
         date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
         completed: true,
       });
@@ -348,6 +355,7 @@ export const updateOrderTracking = async (req: Request, res: Response) => {
       data: order,
     });
   } catch (error: any) {
+    console.error("Error in updateOrderTracking:", error);
     return res.status(500).json({ message: "Failed to update tracking", error: error.message });
   }
 };

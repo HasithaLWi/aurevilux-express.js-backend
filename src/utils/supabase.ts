@@ -62,35 +62,62 @@ export async function uploadToSupabase(
 }
 
 /**
+ * Checks if a given URL or path belongs to Supabase Storage.
+ */
+export function isSupabaseStorageUrl(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false;
+  const clean = url.trim();
+  return (
+    clean.includes("supabase.co/storage/v1/object") ||
+    clean.includes(SUPABASE_BUCKET) ||
+    clean.includes(SUPABASE_USER_BUCKET)
+  );
+}
+
+/**
  * Removes a file from Supabase Storage by its public URL or internal path.
  */
 export async function deleteFromSupabase(
   fileUrlOrPath: string,
   bucket?: string
 ): Promise<boolean> {
-  let targetPath = fileUrlOrPath;
-  let targetBucket = bucket || SUPABASE_BUCKET;
+  if (!fileUrlOrPath || typeof fileUrlOrPath !== "string") return false;
 
-  if (targetPath.includes(SUPABASE_USER_BUCKET)) {
+  const cleanUrl = fileUrlOrPath.split("?")[0].trim();
+  if (!cleanUrl) return false;
+
+  let targetBucket = bucket || SUPABASE_BUCKET;
+  let targetPath = cleanUrl;
+
+  if (cleanUrl.includes(SUPABASE_USER_BUCKET)) {
     targetBucket = SUPABASE_USER_BUCKET;
-    const parts = targetPath.split(`${SUPABASE_USER_BUCKET}/`);
+    const parts = cleanUrl.split(`${SUPABASE_USER_BUCKET}/`);
     if (parts.length > 1) {
       targetPath = parts[1];
     }
-  } else if (targetPath.includes(SUPABASE_BUCKET)) {
+  } else if (cleanUrl.includes(SUPABASE_BUCKET)) {
     targetBucket = SUPABASE_BUCKET;
-    const parts = targetPath.split(`${SUPABASE_BUCKET}/`);
+    const parts = cleanUrl.split(`${SUPABASE_BUCKET}/`);
     if (parts.length > 1) {
       targetPath = parts[1];
     }
+  } else if (!isSupabaseStorageUrl(cleanUrl)) {
+    // Non-Supabase asset (e.g. Unsplash, external, local /images/...)
+    return false;
   }
 
-  const { error } = await supabase.storage
+  // Strip leading slashes and decode URI entities
+  targetPath = targetPath.replace(/^\/+/, "");
+  try {
+    targetPath = decodeURIComponent(targetPath);
+  } catch {}
+
+  const { data, error } = await supabase.storage
     .from(targetBucket)
     .remove([targetPath]);
 
   if (error) {
-    console.error(`Failed to delete file from Supabase (${targetPath}):`, error);
+    console.warn(`Failed to delete file from Supabase (${targetBucket}/${targetPath}):`, error.message);
     return false;
   }
 

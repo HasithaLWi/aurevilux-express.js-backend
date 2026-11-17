@@ -41,6 +41,7 @@ export interface IOrder extends Document {
   shippingAddress: IOrderShippingAddress;
   status:
     | "Pending"
+    | "Confirmed"
     | "Processing"
     | "In Transit"
     | "Out for Delivery"
@@ -102,6 +103,7 @@ const OrderSchema = new Schema<IOrder>(
       type: String,
       enum: [
         "Pending",
+        "Confirmed",
         "Processing",
         "In Transit",
         "Out for Delivery",
