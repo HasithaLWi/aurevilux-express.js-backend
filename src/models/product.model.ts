@@ -33,6 +33,14 @@ export interface IProductReview {
   comment: string;
 }
 
+export interface IEditorialVideo {
+  backgroundVideo?: string;
+  transparentVideoWebm?: string;
+  transparentVideoHevc?: string;
+  poster?: string;
+  duration?: number;
+}
+
 export interface IProduct extends Document {
   name: string;
   slug: string;
@@ -57,6 +65,7 @@ export interface IProduct extends Document {
   isDeleted: boolean;
   specifications: IProductSpec[];
   reviews: IProductReview[];
+  editorialVideo?: IEditorialVideo;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -97,6 +106,17 @@ const ProductReviewSchema = new Schema<IProductReview>(
     comment: { type: String, required: true },
   },
   { _id: true },
+);
+
+const EditorialVideoSchema = new Schema<IEditorialVideo>(
+  {
+    backgroundVideo: { type: String, trim: true },
+    transparentVideoWebm: { type: String, trim: true },
+    transparentVideoHevc: { type: String, trim: true },
+    poster: { type: String, trim: true },
+    duration: { type: Number, default: 7, min: 1 },
+  },
+  { _id: false },
 );
 
 const ProductSchema = new Schema<IProduct>(
@@ -145,6 +165,7 @@ const ProductSchema = new Schema<IProduct>(
     isDeleted: { type: Boolean, default: false, index: true },
     specifications: { type: [ProductSpecSchema], default: [] },
     reviews: { type: [ProductReviewSchema], default: [] },
+    editorialVideo: { type: EditorialVideoSchema, default: undefined },
   },
   {
     timestamps: true,

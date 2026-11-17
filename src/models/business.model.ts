@@ -13,6 +13,12 @@ export interface IBusinessLookbook {
   galleryImages: string[];
 }
 
+export interface IConciergeConfig {
+  activeProvider: "gemini" | "groq";
+  enabled: boolean;
+  welcomeMessage: string;
+}
+
 export interface IBusiness extends Document {
   name: string;
   legalName: string;
@@ -25,6 +31,7 @@ export interface IBusiness extends Document {
   termsAndConditions: string;
   privacyPolicy: string;
   lookbook: IBusinessLookbook;
+  conciergeConfig: IConciergeConfig;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +69,23 @@ const BusinessLookbookSchema = new Schema<IBusinessLookbook>(
       default: "/images/fashion_models/featured_categories_women.jpg",
     },
     galleryImages: [{ type: String }],
+  },
+  { _id: false }
+);
+
+const ConciergeConfigSchema = new Schema<IConciergeConfig>(
+  {
+    activeProvider: {
+      type: String,
+      enum: ["gemini", "groq"],
+      default: "gemini",
+    },
+    enabled: { type: Boolean, default: true },
+    welcomeMessage: {
+      type: String,
+      default:
+        "Hello. I am Éléanore, your Aurevilux client advisor. How may I assist you today?",
+    },
   },
   { _id: false }
 );
@@ -120,6 +144,7 @@ Your dossier is strictly private. We never sell, distribute, or monetize client 
 Patrons maintain the absolute right to inspect, update, or request the purging of their client dossier at any time by contacting concierge@aurevilux.com.`,
     },
     lookbook: { type: BusinessLookbookSchema, default: () => ({}) },
+    conciergeConfig: { type: ConciergeConfigSchema, default: () => ({}) },
   },
   { timestamps: true }
 );
