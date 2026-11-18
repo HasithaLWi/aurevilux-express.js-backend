@@ -349,9 +349,33 @@ export const createProduct = async (req: Request, res: Response) => {
     });
     await newProduct.save();
 
+    const populated = await ProductModel.findById(newProduct._id)
+      .populate("brand", "name slug logo")
+      .populate("category", "title slug image");
+
+    const obj = (populated || newProduct).toObject();
+    const brandName =
+      obj.brand && typeof obj.brand === "object"
+        ? (obj.brand as any).name
+        : obj.brand;
+    const categorySlug =
+      obj.category && typeof obj.category === "object"
+        ? (obj.category as any).slug
+        : obj.category;
+
+    const formattedProduct = {
+      ...obj,
+      id: obj._id.toString(),
+      brand: brandName,
+      brandDetails: typeof obj.brand === "object" ? obj.brand : undefined,
+      category: categorySlug,
+      categoryDetails:
+        typeof obj.category === "object" ? obj.category : undefined,
+    };
+
     return res.status(201).json({
       message: "Product created successfully",
-      data: newProduct,
+      data: formattedProduct,
     });
   } catch (error: any) {
     console.error("Create product error:", error);
@@ -420,15 +444,37 @@ export const updateProduct = async (req: Request, res: Response) => {
     const product = await ProductModel.findOneAndUpdate(query, updateData, {
       new: true,
       runValidators: true,
-    });
+    })
+      .populate("brand", "name slug logo")
+      .populate("category", "title slug image");
 
     if (!product) {
       return res.status(404).json({ message: "Product not found to update" });
     }
 
+    const obj = product.toObject();
+    const brandName =
+      obj.brand && typeof obj.brand === "object"
+        ? (obj.brand as any).name
+        : obj.brand;
+    const categorySlug =
+      obj.category && typeof obj.category === "object"
+        ? (obj.category as any).slug
+        : obj.category;
+
+    const formattedProduct = {
+      ...obj,
+      id: obj._id.toString(),
+      brand: brandName,
+      brandDetails: typeof obj.brand === "object" ? obj.brand : undefined,
+      category: categorySlug,
+      categoryDetails:
+        typeof obj.category === "object" ? obj.category : undefined,
+    };
+
     return res.status(200).json({
       message: "Product updated successfully",
-      data: product,
+      data: formattedProduct,
     });
   } catch (error: any) {
     console.error("Update product error:", error);
