@@ -496,6 +496,27 @@ export const deleteProduct = async (req: Request, res: Response) => {
       }
     }
 
+    // Purge associated editorial videos from Supabase Storage
+    if (product.editorialVideo) {
+      const videoUrls = [
+        product.editorialVideo.backgroundVideo,
+        product.editorialVideo.transparentVideoWebm,
+        product.editorialVideo.transparentVideoHevc,
+        product.editorialVideo.poster,
+      ].filter(Boolean) as string[];
+
+      for (const videoUrl of videoUrls) {
+        try {
+          await deleteFromSupabase(videoUrl);
+        } catch (supabaseErr) {
+          console.warn(
+            `Could not purge video ${videoUrl} from Supabase:`,
+            supabaseErr,
+          );
+        }
+      }
+    }
+
     return res.status(200).json({
       message: "Product soft-deleted and images purged from storage",
       data: { id: product._id, name: product.name },

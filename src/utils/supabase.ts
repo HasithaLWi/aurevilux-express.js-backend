@@ -8,6 +8,8 @@ export const SUPABASE_BUCKET =
   process.env.SUPABASE_BUCKET || "aurevilux-products";
 export const SUPABASE_USER_BUCKET =
   process.env.SUPABASE_USER_BUCKET || "aurevilux-user";
+export const SUPABASE_VIDEO_BUCKET =
+  process.env.SUPABASE_VIDEO_BUCKET || "aurevilux-videos";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
   auth: {
@@ -70,7 +72,11 @@ export function isSupabaseStorageUrl(url?: string | null): boolean {
   return (
     clean.includes("supabase.co/storage/v1/object") ||
     clean.includes(SUPABASE_BUCKET) ||
-    clean.includes(SUPABASE_USER_BUCKET)
+    clean.includes(SUPABASE_USER_BUCKET) ||
+    clean.includes(SUPABASE_VIDEO_BUCKET) ||
+    clean.includes("aurevilux-videos") ||
+    clean.includes("aurevilux-products") ||
+    clean.includes("aurevilux-user")
   );
 }
 
@@ -89,15 +95,26 @@ export async function deleteFromSupabase(
   let targetBucket = bucket || SUPABASE_BUCKET;
   let targetPath = cleanUrl;
 
-  if (cleanUrl.includes(SUPABASE_USER_BUCKET)) {
-    targetBucket = SUPABASE_USER_BUCKET;
-    const parts = cleanUrl.split(`${SUPABASE_USER_BUCKET}/`);
+  // Supabase public or signed URL: /storage/v1/object/(public|sign)/<bucket>/<path...>
+  const storageMatch = cleanUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
+  if (storageMatch) {
+    targetBucket = storageMatch[1];
+    targetPath = storageMatch[2];
+  } else if (cleanUrl.includes(SUPABASE_VIDEO_BUCKET) || cleanUrl.includes("aurevilux-videos")) {
+    targetBucket = SUPABASE_VIDEO_BUCKET;
+    const parts = cleanUrl.split(/aurevilux-videos\//i);
     if (parts.length > 1) {
       targetPath = parts[1];
     }
-  } else if (cleanUrl.includes(SUPABASE_BUCKET)) {
+  } else if (cleanUrl.includes(SUPABASE_USER_BUCKET) || cleanUrl.includes("aurevilux-user")) {
+    targetBucket = SUPABASE_USER_BUCKET;
+    const parts = cleanUrl.split(/aurevilux-user\//i);
+    if (parts.length > 1) {
+      targetPath = parts[1];
+    }
+  } else if (cleanUrl.includes(SUPABASE_BUCKET) || cleanUrl.includes("aurevilux-products")) {
     targetBucket = SUPABASE_BUCKET;
-    const parts = cleanUrl.split(`${SUPABASE_BUCKET}/`);
+    const parts = cleanUrl.split(/aurevilux-products\//i);
     if (parts.length > 1) {
       targetPath = parts[1];
     }
